@@ -4,7 +4,8 @@ Description: Reads and processes a Bill of Materials (BOM) Excel file.
              The BOM template is expected to have an indicator row as the first row and
              the actual column names on the second row. This module cleans and normalizes
              column names, reads only the essential input columns, and computes additional
-             columns (such as PartType, Value, Voltage, etc.) for further reliability analysis.
+             columns (such as PartType, SubCategory, Value, Tolerance, Voltage, etc.)
+             for further reliability analysis.
 """
 
 import re
@@ -48,12 +49,11 @@ def standardize_columns(columns):
     """
     Builds a mapping from the original column names to standardized expected names.
     
-    For each column in the input, this function compares the cleaned version of the name
-    against the expected variants. If a match is found, it maps the original name to the
-    standardized expected key.
+    For each column, this function compares the cleaned version of the name against the expected variants.
+    If a match is found, it maps the original name to the standardized key.
     
     Args:
-        columns (iterable): List or iterable of column names from the BOM file.
+        columns (iterable): Column names from the BOM file.
         
     Returns:
         dict: Mapping from the original column name to the standardized expected name.
@@ -65,7 +65,7 @@ def standardize_columns(columns):
         for expected, variants in EXPECTED_COLUMNS.items():
             for variant in variants:
                 if cleaned == clean_string(variant):
-                    mapping[col] = expected  # Replace original with standardized name.
+                    mapping[col] = expected
                     found = True
                     break
             if found:
@@ -90,14 +90,14 @@ def round_sig(x, sig=4):
 
 def convert_value(value_str):
     """
-    Converts a value string (e.g., "1k", "10uF", "100pF", "47") to a numeric value
-    using appropriate multipliers, then rounds it to 4 significant digits.
+    Converts a value string (e.g., "1k", "10uF", "100pF", "47") to a numeric value using appropriate multipliers,
+    then rounds it to 4 significant digits.
     
     Args:
         value_str (str): The value string extracted from the description.
         
     Returns:
-        float or None: The numeric value converted to base units and rounded, or None if conversion fails.
+        float or None: The numeric value in base units (rounded), or None if conversion fails.
     """
     pattern = re.compile(r"(\d+\.?\d*)\s*([A-Za-zµ]*)")
     match = pattern.fullmatch(value_str.strip())
@@ -106,12 +106,12 @@ def convert_value(value_str):
     number = float(match.group(1))
     unit = match.group(2)
     
-    # Define multipliers.
+    # Define multipliers for various units.
     if unit == "":
         multiplier = 1
     elif unit in ['k', 'K']:
         multiplier = 1e3
-    elif unit == 'M':  # Mega (resistors, etc.)
+    elif unit == 'M':
         multiplier = 1e6
     elif unit == 'm':  # milli
         multiplier = 1e-3
@@ -120,30 +120,34 @@ def convert_value(value_str):
     elif unit.lower() == 'pf':
         multiplier = 1e-12
     else:
-        multiplier = 1  # fallback
+        multiplier = 1
     value = number * multiplier
     return round_sig(value, 4)
 
 def parse_description(desc):
     """
-    Parses the description string to extract part details and converts the value and voltage to numbers.
+    Parses the description string to extract part details, including sub-category and tolerance,
+    and converts the value and voltage to numbers rounded to 4 significant digits.
     
-    This parser looks for key patterns:
+    This parser looks for:
       - Part type: Determines if the part is a resistor, capacitor, IC, inductor, connector, or Other.
-      - Value: Extracts the first numeric value with an optional unit (e.g., "1k", "10uF", "100pF")
-               and converts it to a number rounded to 4 significant digits.
-      - Voltage: Extracts a voltage value (e.g., "5V") and converts it to a number, rounded to 4 significant digits.
+      - SubCategory: For example, for capacitors, it extracts "Ceramic" or "Tantalum" if present.
+      - Value: Extracts the first numeric value with an optional unit (e.g., "1k", "10uF", "100pF") and converts it.
+      - Tolerance: For resistors and capacitors, extracts a tolerance percentage (e.g., "±5%") if present.
+      - Voltage: Extracts a voltage value (e.g., "5V") and converts it.
     
     Args:
         desc (str): The part description from the BOM.
     
     Returns:
-        dict: A dictionary with keys 'PartType', 'Value', and 'Voltage'.
+        dict: A dictionary with keys 'PartType', 'SubCategory', 'Value', 'Tolerance', and 'Voltage'.
     """
     if not isinstance(desc, str):
-        return {"PartType": None, "Value": None, "Voltage": None}
+        return {"PartType": None, "SubCategory": None, "Value": None, "Tolerance": None, "Voltage": None}
     
     desc_lower = desc.lower()
+    
+    # Determine part type.
     if "resistor" in desc_lower:
         part_type = "Resistor"
     elif "capacitor" in desc_lower:
@@ -157,7 +161,23 @@ def parse_description(desc):
     else:
         part_type = "Other"
     
-    # Extract value string and convert it.
+    # Determine sub-category (for capacitors in this example).
+    sub_category = None
+    if part_type == "Capacitor":
+        if "ceramic" in desc_lower:
+            sub_category = "Ceramic"
+        elif "tantalum" in desc_lower:
+            sub_category = "Tantalum"
+    
+    # Extract tolerance percentage for resistors and capacitors.
+    tolerance = None
+    if part_type in ("Resistor", "Capacitor"):
+        tol_match = re.search(r"±?\s*(\d+\.?\d*)\s*%", desc)
+        if tol_match:
+            tolerance = float(tol_match.group(1))
+            tolerance = round_sig(tolerance, 4)
+    
+    # Extract value and convert.
     value_match = re.search(r"(\d+\.?\d*\s*(?:[kK]|[M]|[m]|(?:[uU]F)|(?:[pP]F))?)", desc)
     if value_match:
         value_str = value_match.group(0).strip()
@@ -177,7 +197,13 @@ def parse_description(desc):
     else:
         voltage_numeric = None
     
-    return {"PartType": part_type, "Value": numeric_value, "Voltage": voltage_numeric}
+    return {
+        "PartType": part_type,
+        "SubCategory": sub_category,
+        "Value": numeric_value,
+        "Tolerance": tolerance,
+        "Voltage": voltage_numeric
+    }
 
 def process_bom(file, sheet_name=0):
     """
@@ -193,9 +219,10 @@ def process_bom(file, sheet_name=0):
       2. Renames them to standardized names.
       3. Computes additional columns:
          - "PartType": Derived from Description.
+         - "SubCategory": Derived from Description (e.g., "Ceramic" or "Tantalum" for capacitors).
          - "Value": Numeric value extracted from Description.
+         - "Tolerance": Numeric tolerance percentage for resistors/capacitors.
          - "Voltage": Numeric voltage extracted from Description.
-         - "Tolerance": Placeholder (None).
          - "AdditionalInfo": Placeholder (empty string).
          - "CalculatedQuantity": Copies the original Quantity.
     
@@ -206,16 +233,18 @@ def process_bom(file, sheet_name=0):
     Returns:
         pandas.DataFrame: A DataFrame with the essential input columns and the computed columns.
     """
-    # Read Excel file, skipping the first row.
+    # Read Excel file, skipping the indicator row.
     df = pd.read_excel(file, sheet_name=sheet_name, skiprows=1, header=0)
     logger.info(f"Original columns: {df.columns.tolist()}")
     
-    # Build mapping and rename columns.
+    # Build mapping from original to standardized column names.
     col_mapping = standardize_columns(df.columns)
     for required in EXPECTED_COLUMNS:
         if required not in col_mapping.values():
             available = df.columns.tolist()
-            raise ValueError(f"Missing required column for '{required}'. Expected variants: {EXPECTED_COLUMNS[required]}. Available columns: {available}")
+            raise ValueError(
+                f"Missing required column for '{required}'. Expected variants: {EXPECTED_COLUMNS[required]}. Available columns: {available}"
+            )
     df = df.rename(columns=col_mapping)
     logger.info(f"Columns after renaming: {df.columns.tolist()}")
     
@@ -223,18 +252,21 @@ def process_bom(file, sheet_name=0):
     required_input_columns = ["FN", "ManufacturerPartNumber", "Quantity", "Description", "DrawingRef"]
     df = df[required_input_columns]
     
-    # Process Description column to compute additional values.
+    # Process the Description column to compute additional values.
     try:
         parsed_info = df["Description"].apply(parse_description)
     except KeyError as e:
-        raise KeyError(f"Error accessing 'Description' column. Available columns: {df.columns.tolist()}") from e
+        raise KeyError(
+            f"Error accessing 'Description' column. Available columns: {df.columns.tolist()}"
+        ) from e
     parsed_df = pd.DataFrame(parsed_info.tolist())
     
     # Append computed columns.
     df["PartType"] = parsed_df["PartType"]
+    df["SubCategory"] = parsed_df["SubCategory"]
     df["Value"] = parsed_df["Value"]
+    df["Tolerance"] = parsed_df["Tolerance"]
     df["Voltage"] = parsed_df["Voltage"]
-    df["Tolerance"] = None
     df["AdditionalInfo"] = ""
     df["CalculatedQuantity"] = df["Quantity"]
     
@@ -249,7 +281,7 @@ def process_bom(file, sheet_name=0):
     return df
 
 if __name__ == "__main__":
-    # For testing, replace 'BOM Only.xlsx' with the actual BOM file path.
+    # For testing purposes, replace 'BOM Only.xlsx' with your actual BOM file path.
     bom_file_path = "BOM Only.xlsx"
     try:
         processed_bom = process_bom(bom_file_path)

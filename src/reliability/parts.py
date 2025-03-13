@@ -88,3 +88,4 @@ class Capacitor(Part):
         super().__init__(part_number, base_failure_rate, quality_factor, environmental_factor)
         self.capacitance_value = capacitance_value
 
+

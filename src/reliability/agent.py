@@ -19,14 +19,9 @@ def search_milstd217_info(part_number):
         dict: A dictionary containing MIL‑STD‑217 data (e.g., base failure rate, quality factors, etc.)
               For demonstration purposes, this function returns dummy data.
     """
-    # Example: using a dummy URL; in practice, use an appropriate API or scraping logic.
     query = f"MIL-STD-217 {part_number}"
-    # In a real implementation, use a search API or scraping logic. Here, we return dummy values.
-    # response = requests.get("https://example.com/search", params={"q": query})
-    # soup = BeautifulSoup(response.text, "html.parser")
-    # Parse the soup to extract relevant information.
-    
-    # Dummy data for demonstration:
+    # In a real implementation, you would use an API or scraping logic here.
+    # For demonstration, return dummy data.
     return {
         "PartNumber": part_number,
         "BaseFailureRate": 0.0015,

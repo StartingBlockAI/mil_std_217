@@ -21,13 +21,20 @@ PartsRepository that will manage part objects (adding, retrieving, listing)
 Code is split into modules to improve maintainability and scalability
 
 project/
-│
-├── parts.py         # Contains the Part base class and its subclasses
-├── repository.py    # Contains the PartsRepository class
-├── main.py          # The main file that ties everything together
-├── requirements.txt # List of required packages (if any)
-├── README.md        # Instructions on setting up and running the project
-└── .gitignore       # To ignore the virtual environment folder and other artifacts
+├── src/
+│   └── reliability/
+│       ├── __init__.py            # (Empty file to mark the package)
+│       ├── parts.py               # Part classes (base, Resistor, Capacitor, etc.)
+│       ├── repository.py          # PartsRepository for managing parts
+│       ├── agent.py               # Web search agent for MIL‑STD‑217 info
+│       ├── bom_processor.py       # BOM Excel file reader and processor
+│       ├── excel_output.py        # Module to generate Excel output
+│       └── ui.py                  # Streamlit UI for file upload and processing
+├── tests/                         # (Optional) Unit tests for each module
+├── setup.py                       # Packaging configuration file
+├── requirements.txt               # Project dependencies list
+└── README.md                      # Project documentation
+
 
 Virtual Environment:
 python -m venv 217venv

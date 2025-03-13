@@ -1,5 +1,3 @@
-# repository.py
-
 """
 Module: repository
 Description: Contains the PartsRepository class for managing electronic parts.
@@ -45,4 +43,5 @@ class PartsRepository:
             list: A list of part numbers.
         """
         return list(self._parts.keys())
+
 

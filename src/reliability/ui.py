@@ -1,45 +1,41 @@
 """
 Module: ui
-Description: Provides a Streamlit-based user interface to load a BOM Excel file,
-             process MIL‑STD‑217 data, and output an Excel report.
+Description: Provides a Streamlit-based user interface for uploading a BOM Excel file,
+             processing MIL‑STD‑217 data, and generating an Excel report.
 """
 
 import streamlit as st
 import pandas as pd
+from bom_processor import process_bom
 from agent import get_milstd217_info_for_parts
 from excel_output import create_output_excel
 
 def main():
     st.title("Reliability Prediction Tool")
-    st.write("Upload your Bill of Materials (Excel format) to begin.")
+    st.write("Upload your Bill of Materials (Excel format) to begin processing.")
 
     uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx", "xls", "xlsm"])
     if uploaded_file is not None:
         try:
-            # Read the BOM into a DataFrame
-            bom_df = pd.read_excel(uploaded_file)
+            bom_df = process_bom(uploaded_file)
             st.write("BOM Loaded Successfully:")
             st.dataframe(bom_df)
 
-            # Process the BOM to extract part numbers and other details.
-            # Assume your BOM has a column called "PartNumber"
-            if "PartNumber" not in bom_df.columns:
-                st.error("BOM must include a 'PartNumber' column.")
+            # Ensure required columns exist for further processing.
+            if "FN" not in bom_df.columns or "Quantity" not in bom_df.columns:
+                st.error("BOM must include 'FN' (find number) and 'Quantity' columns.")
                 return
 
-            part_numbers = bom_df["PartNumber"].tolist()
+            # Get the list of part numbers (using the 'FN' column)
+            part_numbers = bom_df["FN"].tolist()
             st.write("Searching for MIL‑STD‑217 data for the provided parts...")
             
-            # Get MIL‑STD‑217 relevant info for each part
             milstd_data = get_milstd217_info_for_parts(part_numbers)
-            
-            # Merge MIL‑STD‑217 data with BOM (this example assumes both are DataFrames)
-            # In practice, you may need to adjust merging based on your data schema.
-            output_df = pd.merge(bom_df, milstd_data, on="PartNumber", how="left")
+            # Merge the BOM with the MIL‑STD‑217 data on the find number
+            output_df = pd.merge(bom_df, milstd_data, left_on="FN", right_on="PartNumber", how="left")
             st.write("Processed Data:")
             st.dataframe(output_df)
             
-            # Generate output Excel file
             output_file = create_output_excel(output_df)
             st.success("Output Excel file generated successfully!")
             st.download_button(

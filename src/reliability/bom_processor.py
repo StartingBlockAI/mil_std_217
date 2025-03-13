@@ -4,8 +4,8 @@ Description: Reads and processes a Bill of Materials (BOM) Excel file.
              The BOM template is expected to have an indicator row as the first row and
              the actual column names on the second row. This module cleans and normalizes
              column names, reads only the essential input columns, and computes additional
-             columns (such as PartType, SubCategory, Value, Tolerance, Voltage, etc.)
-             for further reliability analysis.
+             columns (such as PartType, SubCategory, Value, Tolerance, and Voltage) for further
+             reliability analysis.
 """
 
 import re
@@ -177,7 +177,7 @@ def parse_description(desc):
             tolerance = float(tol_match.group(1))
             tolerance = round_sig(tolerance, 4)
     
-    # Extract value and convert.
+    # Extract value string and convert it.
     value_match = re.search(r"(\d+\.?\d*\s*(?:[kK]|[M]|[m]|(?:[uU]F)|(?:[pP]F))?)", desc)
     if value_match:
         value_str = value_match.group(0).strip()
@@ -185,7 +185,7 @@ def parse_description(desc):
     else:
         numeric_value = None
     
-    # Extract voltage.
+    # Extract voltage string and convert it.
     voltage_match = re.search(r"(\d+\.?\d*\s*(?:V|volts))", desc, re.IGNORECASE)
     if voltage_match:
         voltage_str = voltage_match.group(0).strip()
@@ -224,7 +224,6 @@ def process_bom(file, sheet_name=0):
          - "Tolerance": Numeric tolerance percentage for resistors/capacitors.
          - "Voltage": Numeric voltage extracted from Description.
          - "AdditionalInfo": Placeholder (empty string).
-         - "CalculatedQuantity": Copies the original Quantity.
     
     Args:
         file: The file-like object or file path for the BOM Excel file.
@@ -237,7 +236,7 @@ def process_bom(file, sheet_name=0):
     df = pd.read_excel(file, sheet_name=sheet_name, skiprows=1, header=0)
     logger.info(f"Original columns: {df.columns.tolist()}")
     
-    # Build mapping from original to standardized column names.
+    # Build mapping from original column names to standardized names.
     col_mapping = standardize_columns(df.columns)
     for required in EXPECTED_COLUMNS:
         if required not in col_mapping.values():
@@ -268,12 +267,11 @@ def process_bom(file, sheet_name=0):
     df["Tolerance"] = parsed_df["Tolerance"]
     df["Voltage"] = parsed_df["Voltage"]
     df["AdditionalInfo"] = ""
-    df["CalculatedQuantity"] = df["Quantity"]
     
     # Drop rows missing critical input data.
     df = df.dropna(subset=["FN", "ManufacturerPartNumber", "Quantity", "Description"])
     
-    # Log rows with potential parsing issues.
+    # Log potential parsing issues.
     for idx, row in parsed_df.iterrows():
         if row["PartType"] is None or row["Value"] is None:
             logger.info(f"Row {idx} might have an unrecognized description: {df.loc[idx, 'Description']}")
@@ -281,7 +279,7 @@ def process_bom(file, sheet_name=0):
     return df
 
 if __name__ == "__main__":
-    # For testing purposes, replace 'BOM Only.xlsx' with your actual BOM file path.
+    # For testing, replace 'BOM Only.xlsx' with your actual BOM file path.
     bom_file_path = "BOM Only.xlsx"
     try:
         processed_bom = process_bom(bom_file_path)

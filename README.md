@@ -1,52 +1,45 @@
-# mil_std_217
+# MIL-HDBK-217 Reliability Analysis Tool
 
-Objective:
-Develop a repository to look up reliability values for electronic parts as defined by MIL-HDBK-217)
+## Project Overview
+This project provides a **Streamlit-based GUI tool** for **MIL-HDBK-217 reliability analysis**. Users can upload a **Bill of Materials (BOM) Excel file**, which is then processed to extract relevant information, map components to their respective **MIL-HDBK-217 sections**, and generate a reliability analysis report.
 
-Key Data Points:
-For each part, define what attributes are required such as part number, base failure rate, quality factor, environmental factor, and possibly additional attributes specific to the type of component. (e.g. resistance value for resistors, capacitance for capacitors).
+## Project Structure
+```
+MIL-HDBK-217-Tool/
+│── preprocess_bom.py         # Processes the BOM and maps components to MIL-HDBK-217 sections
+│── mil_hdbk_217_sections.py  # Dictionary mapping MIL-HDBK-217 sections and subsections
+│── streamlit_app.py          # Streamlit web app for file upload and processing
+│── README.md                 # Project documentation
+```
 
-Functionality:
-Extensibly look up calculated failure rates, store different types of parts, and enable lookups by part number or type.
+## Installation
+To run this project, install the necessary dependencies:
+```bash
+pip install streamlit pandas openpyxl
+```
 
-##Project Architecture
-Base Class (Part): Holds common attributes and methods (e.g. failure rate calculation).
+## Usage
+### Running the Streamlit Application
+```bash
+streamlit run streamlit_app.py
+```
 
-Subclasses (e.g. Resistor, Capacitor): Inherit from Part and include additional, type-specific attributes.
+### Features
+- **File Upload:** Users can upload a BOM Excel file.
+- **Automatic Processing:** Extracts **Part Type, Subtype, and Capacitance**.
+- **MIL-HDBK-217 Mapping:** Identifies the correct **MIL-HDBK-217 section** for each component.
+- **Download Processed Data:** Users can download the updated BOM file.
 
-##Repository Pattern:
-PartsRepository that will manage part objects (adding, retrieving, listing)
+## Example BOM Processing Workflow
+1. **Upload BOM file** in `.xls` or `.xlsx` format.
+2. **Processing occurs automatically**, extracting capacitor subtypes, values, and mapping to MIL-HDBK-217.
+3. **Processed BOM is displayed and available for download.**
 
-##Project Structure:
-Code is split into modules to improve maintainability and scalability
+## Future Enhancements
+- **Automated reliability calculations** based on MIL-HDBK-217 formulas.
+- **Expanded part type classification** beyond capacitors.
+- **Database integration** for storing processed data.
 
-project/
-├── src/
-│   └── reliability/
-│       ├── __init__.py            # (Empty file to mark the package)
-│       ├── parts.py               # Part classes (base, Resistor, Capacitor, etc.)
-│       ├── repository.py          # PartsRepository for managing parts
-│       ├── agent.py               # Web search agent for MIL‑STD‑217 info
-│       ├── bom_processor.py       # BOM Excel file reader and processor
-│       ├── excel_output.py        # Module to generate Excel output
-│       └── ui.py                  # Streamlit UI for file upload and processing
-├── tests/                         # (Optional) Unit tests for each module
-├── setup.py                       # Packaging configuration file
-├── requirements.txt               # Project dependencies list
-└── README.md                      # Project documentation
-
-
-Virtual Environment:
-python -m venv 217venv
-add 217venv to .gitignore
-from cmd: .\217venv\Scripts\activate
-
-To create new requirements.txt file:
-pip freeze > requirements
-
-To create new requirements.txt file only using utilized packages:
-pipreqs /path/to/your/project
-
-To overwrite an existing file:
-pipreqs . --force
+## License
+MIT License
 
